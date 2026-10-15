@@ -21,7 +21,7 @@
 
 ;;; Commentary:
 
-;; apt install libinput-tools
+;; apt install libinput-tools evtest
 
 ;;; Code:
 
@@ -32,6 +32,7 @@
 (defvar libinput--device-map nil)
 (defvar libinput--callback nil)
 (defvar libinput--parser nil)
+(defvar libinput--buffer-name " *libinput*")
 
 (defun libinput-start (callback)
   "Start listening for events."
@@ -39,7 +40,7 @@
 
 (defun libinput--start (callback parser program &rest command)
   (libinput-stop)
-  (with-current-buffer (get-buffer-create " *libinput*")
+  (with-current-buffer (get-buffer-create libinput--buffer-name)
     (setq-local libinput--prev-point (point-max))
     (setq-local libinput--callback callback)
     (setq-local libinput--device-map (make-hash-table :test #'equal))
@@ -134,15 +135,20 @@
     (libinput--start callback #'libinput--record-parser
 		     "libinput" "record" "--show-keycodes" device)))
 
-(defun libinput--find-device (device-name)
+(defun libinput--find-devices (device-name)
+  "Return all device names that match DEVICE-NAME (a regexp)."
   (with-temp-buffer
     (call-process "libinput" nil t nil "list-devices")
     (goto-char (point-min))
-    (and (re-search-forward (format "^Device:[\t ]*%s[\t ]*$"
-				    (regexp-quote device-name))
-			    nil t)
-	 (re-search-forward "^Kernel:[\t ]*\\(.*\\)" nil t)
-	 (match-string 1))))
+    (cl-loop while (and (re-search-forward (concat "^Device:.*" device-name)
+					   nil t)
+			(re-search-forward "^Kernel:[\t ]*\\(.*\\)" nil t))
+	     collect (match-string 1))))
+
+(defun libinput--find-device (device-name)
+  "Find a device name that matches DEVICE-NAME precisely."
+  (car (libinput--find-devices (format "[\t ]*%s[\t ]*$"
+				       (regexp-quote device-name)))))
 
 (defun libinput--record-parser (line)
   (and (string-match "EV_KEY / \\([^ ]+\\)[\t ]+0[\t ]*$" line)
@@ -156,6 +162,19 @@
   (when-let ((device (libinput--find-device device-name)))
     (libinput--start callback #'libinput--grab-parser
 		     "evtest" "--grab" device)))
+
+(defvar libinput--processes nil)
+
+(defun libinput-grab-devices (callback device-name)
+  (dolist (process libinput--processes)
+    (delete-process process))
+  (setq libinput--processes nil)
+  (dolist (device (libinput--find-devices device-name))
+    (let ((libinput--process nil)
+	  (libinput--buffer-name (generate-new-buffer-name " *libinput*")))
+      (libinput--start callback #'libinput--grab-parser
+		       "evtest" "--grab" device)
+      (push libinput--process libinput--processes))))
 
 (provide 'libinput)
 
