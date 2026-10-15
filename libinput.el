@@ -107,7 +107,7 @@
 	 (and (car delta)
 	      (cadr delta)
 	      (list :x-delta (string-to-number (car delta))
-		    :y-delta (string-to-number (cadr delta))))))
+		    :y-delta (string-to-number (or (cadr delta) "0"))))))
       ((equal type "TOUCH_DOWN")
        (let ((pos (split-string (nth 5 elem) "[ /]+")))
 	 (list :x (string-to-number (car pos))
