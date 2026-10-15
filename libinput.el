@@ -56,6 +56,7 @@
 
 (defun libinput--filter (process string)
   (let ((lines nil)
+	(buf (current-buffer))
 	callback map)
     (with-current-buffer (process-buffer process)
       (setq callback libinput--callback
@@ -81,8 +82,8 @@
 	    (setf (cl-getf event :device-name)
 		  (gethash (cl-getf event :device-id) map
 			   (cl-getf event :device-id)))
-	    (condition-case err
-		(save-excursion
+	    (condition-case-unless-debug err
+		(with-current-buffer buf
 		  (funcall callback event))
 	      (error
 	       (message "Got an error: %s" err)))))))))
