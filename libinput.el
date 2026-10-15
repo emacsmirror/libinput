@@ -82,7 +82,7 @@
 	    (setf (cl-getf event :device-name)
 		  (gethash (cl-getf event :device-id) map
 			   (cl-getf event :device-id)))
-	    (condition-case-unless-debug err
+	    (condition-case err
 		(with-current-buffer buf
 		  (funcall callback event))
 	      (error
