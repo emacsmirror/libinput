@@ -21,6 +21,8 @@
 
 ;;; Commentary:
 
+;; apt install libinput-tools
+
 ;;; Code:
 
 (require 'cl-lib)
